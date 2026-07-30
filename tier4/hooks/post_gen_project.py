@@ -7,10 +7,9 @@ ORG_NAME = '{{ cookiecutter.project_org }}'
 VISIBILITY = '{{cookiecutter.project_visibility}}'
 DESCRIPTION = '{{cookiecutter.project_description}}'
 CREATE_REPO = '{{cookiecutter.create_repo}}'
+RECEIVE_UPDATES = '{{cookiecutter.receive_updates}}'
 ADD_TEAM = '{{cookiecutter.add_team}}'
-ORG_TOPIC_NAME = '{{cookiecutter.org_topic_name}}'
-MATURITY_MODEL = 'tier4'
-ADDITIONAL_TOPICS = '{{cookiecutter.repo_topics}}'
+ADD_MAINTAINER = '{{cookiecutter.add_maintainer}}'
 
 def createGithubRepo():
     gh_cli_command = [
@@ -24,32 +23,50 @@ def createGithubRepo():
     subprocess.call(gh_cli_command)
     subprocess.call(["git", "push", "--set-upstream", "origin", "main"])
 
-def get_repo_topics():
-    maturity_topic = f"{ORG_TOPIC_NAME}-{MATURITY_MODEL}"
-
-    additional_topics = [
-        topic.strip()
-        for topic in ADDITIONAL_TOPICS.split(",")
-        if topic.strip()
-    ]
-
-    topics = [maturity_topic, *additional_topics]
-
-    # Remove duplicates while preserving the original order.
-    return list(dict.fromkeys(topics))
-
 def addTopic():
-    topics = get_repo_topics()
     gh_cli_command = [
         "gh", "repo", "edit",
         f"{ORG_NAME}/{REPO_NAME}",
+        "--add-topic=dsacms-tier4",
     ]
-    for topic in topics:
-        gh_cli_command.append(f"--add-topic={topic}")
+    subprocess.call(gh_cli_command)
 
-    subprocess.call(gh_cli_command, check=True)
+# Helper function for addMaintainer() to get user input of usernames for Maintainer, Approver, and Reviewer
+def getUsernames(role):
+    while True:
+        usernames = input(f"Enter the GitHub usernames of {role} (comma-separated): ").strip()
+        if usernames:
+            return [username.strip() for username in usernames.split(',')]
+        print("Please enter at least one username.")
+
+# Helper function for addMaintainer() to format list of usernames
+def formatUsernames(usernames):
+    return "".join(f"- @{username.lstrip('@')}\n" for username in usernames)
+
+def addMaintainer():
+    print("ℹ️ Creating a list of maintainers, approvers, and reviewers")
+    maintainers = getUsernames("MAINTAINERS")
+    approvers = getUsernames("APPROVERS")
+    reviewers = getUsernames("REVIEWERS")
+
+    community_file_path = "COMMUNITY.md"
+
+    with open(community_file_path, "r") as f:
+        lines = f.readlines()
+
+    for i, line in enumerate(lines):
+        if line.strip() == "### Maintainers:" and i + 2 < len(lines) and lines[i + 2].strip() == "-":
+            lines[i + 2] = formatUsernames(maintainers)
+        elif line.strip() == "### Approvers:" and i + 2 < len(lines) and lines[i + 2].strip() == "-":
+            lines[i + 2] = formatUsernames(approvers)
+        elif line.strip() == "### Reviewers:" and i + 2 < len(lines) and lines[i + 2].strip() == "-":
+            lines[i + 2] = formatUsernames(reviewers)
+
+    with open(community_file_path, "w") as f:
+        f.writelines(lines)
 
 def addTeam():
+    print("ℹ️ Creating a table of project team members")
     team = []
     add_member = True
     while add_member:
@@ -106,22 +123,24 @@ def moveCookiecutterFile():
 def main():
     if ADD_TEAM == "True":
         addTeam()
-        
+
+    if ADD_MAINTAINER == "True":
+        addMaintainer()
+
     moveCookiecutterFile()
-    
+        
     subprocess.call(["git", "init", "-b", "main"])
     subprocess.call(["git", "add", "."])
     subprocess.call(["git", "commit", "-m", "initial commit"])
-    
+
     if CREATE_REPO == "True":
         createGithubRepo()
-        addTopic()       
 
+    if RECEIVE_UPDATES == "True":
+        addTopic()
     
     print(f"\n****************************************")
     print(f"\n✅ {REPO_NAME} has successfully been created!\n")
-    print(f"Topics that would be added: {get_repo_topics()}")
-
     
 if __name__ == "__main__":
     main()

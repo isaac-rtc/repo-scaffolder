@@ -7,10 +7,8 @@ ORG_NAME = '{{ cookiecutter.project_org }}'
 VISIBILITY = '{{cookiecutter.project_visibility}}'
 DESCRIPTION = '{{cookiecutter.project_description}}'
 CREATE_REPO = '{{cookiecutter.create_repo}}'
+RECEIVE_UPDATES = '{{cookiecutter.receive_updates}}'
 ADD_TEAM = '{{cookiecutter.add_team}}'
-ORG_TOPIC_NAME = '{{cookiecutter.org_topic_name}}'
-MATURITY_MODEL = 'tier0'
-ADDITIONAL_TOPICS = '{{cookiecutter.repo_topics}}'
 
 def createGithubRepo():
     gh_cli_command = [
@@ -24,30 +22,13 @@ def createGithubRepo():
     subprocess.call(gh_cli_command)
     subprocess.call(["git", "push", "--set-upstream", "origin", "main"])
 
-def get_repo_topics():
-    maturity_topic = f"{ORG_TOPIC_NAME}-{MATURITY_MODEL}"
-
-    additional_topics = [
-        topic.strip()
-        for topic in ADDITIONAL_TOPICS.split(",")
-        if topic.strip()
-    ]
-
-    topics = [maturity_topic, *additional_topics]
-
-    # Remove duplicates while preserving the original order.
-    return list(dict.fromkeys(topics))
-
 def addTopic():
-    topics = get_repo_topics()
     gh_cli_command = [
         "gh", "repo", "edit",
         f"{ORG_NAME}/{REPO_NAME}",
+        "--add-topic=dsacms-tier0",
     ]
-    for topic in topics:
-        gh_cli_command.append(f"--add-topic={topic}")
-
-    subprocess.call(gh_cli_command, check=True)
+    subprocess.call(gh_cli_command)
 
 def addTeam():
     team = []
@@ -115,12 +96,12 @@ def main():
     
     if CREATE_REPO == "True":
         createGithubRepo()
-        addTopic()       
 
+    if RECEIVE_UPDATES == "True":
+        addTopic()
     
     print(f"\n****************************************")
     print(f"\n✅ {REPO_NAME} has successfully been created!\n")
-    print(f"Topics that would be added: {get_repo_topics()}")
 
     
 if __name__ == "__main__":
